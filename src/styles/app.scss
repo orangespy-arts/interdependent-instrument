@@ -1,0 +1,12 @@
+@use '../clients/controller/controller.css';
+
+* { box-sizing: border-box; }
+html { margin: 0; min-height: 100%; }
+body.player { margin: 0; min-height: 100svh; background: #f8f7f3; color: #202824; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.introduction { max-width: 460px; padding: max(36px, env(safe-area-inset-top)) 28px 36px; margin: auto; }
+.introduction h1 { font-size: 30px; font-weight: 500; margin: 14px 0 32px; }
+.introduction p { font-size: 17px; line-height: 1.85; margin: 0 0 19px; }
+.introduction button { appearance: none; background: #254d45; color: #fff; border: 0; border-radius: 14px; width: 100%; margin-top: 12px; padding: 18px; font: inherit; font-size: 18px; }
+.introduction button:disabled { opacity: .4; }
+.introduction button:focus-visible { outline: 3px solid #aa784f; outline-offset: 4px; }
+body.player.performing { background: #000; color: #000; height: 100dvh; overflow: hidden; touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; }

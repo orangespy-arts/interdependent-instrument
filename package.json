@@ -1,0 +1,44 @@
+{
+  "name": "interdependent-instrument",
+  "description": "双人动作与声音依赖规则研究原型 · soundworks v5",
+  "authors": [],
+  "license": "BSD-3-Clause",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "npm run clean && sass src/styles:.build/public/css && soundworks-build -b",
+    "clean": "soundworks-build -D",
+    "dev": "npm run build && concurrently -k -p \"none\" \"soundworks-build -p server\" \"soundworks-build -b -w\" \"npm run watch:sass\"",
+    "lint": "eslint src tests scripts",
+    "start": "node .build/server.js",
+    "watch": "soundworks-build -p",
+    "watch:inspect": "soundworks-build -i -p",
+    "watch:sass": "sass --watch src/styles:.build/public/css",
+    "test": "node --test tests/*.test.js",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@ircam/devicemotion": "^1.3.1",
+    "@soundworks/core": "^5.0.0",
+    "@soundworks/helpers": "^5.0.0",
+    "@soundworks/plugin-checkin": "^5.0.0",
+    "@soundworks/plugin-logger": "^5.0.0",
+    "@soundworks/plugin-platform-init": "^5.0.0",
+    "@soundworks/plugin-sync": "^5.0.0",
+    "lit": "^3.1.3"
+  },
+  "devDependencies": {
+    "@ircam/eslint-config": "^2.0.1",
+    "@soundworks/build": "^5.0.0",
+    "@soundworks/create": "5.1.3",
+    "@types/node": "^22.10.10",
+    "@types/web": "^0.0.199",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.18.0",
+    "sass": "^1.77.1"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

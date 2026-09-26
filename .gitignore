@@ -1,0 +1,9 @@
+node_modules/
+.build/
+.data/
+.DS_Store
+logs/
+certificates/
+config/env-local.yaml
+*.log
+coverage/

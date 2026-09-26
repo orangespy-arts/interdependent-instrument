@@ -1,0 +1,7 @@
+{
+  "name": "interdependent-instrument",
+  "createVersion": "5.1.3",
+  "language": "js",
+  "template": "js",
+  "configFormat": "yaml"
+}

@@ -1,0 +1,8 @@
+name: interdependent-instrument
+author: ''
+clients:
+  player:
+    runtime: browser
+    default: true
+  controller:
+    runtime: browser
