@@ -7,6 +7,7 @@ import ServerPluginCheckin from '@soundworks/plugin-checkin/server.js';
 import ServerPluginLogger from '@soundworks/plugin-logger/server.js';
 import { globalDescription, playerDescription } from './shared/state-descriptions.js';
 import { Session } from './server/Session.js';
+import { participantLinks, readCertificate } from './server/participant-links.js';
 
 const config = loadConfig(process.env.ENV, import.meta.url);
 const server = new Server(config);
@@ -48,7 +49,20 @@ const players = await server.stateManager.getCollection('player');
 const sync = await server.pluginManager.get('sync');
 const logger = await server.pluginManager.get('logger');
 session = new Session({ global, players, sync, logger });
-console.log('\n手机端: https://localhost:8000/\n研究者控制端: https://localhost:8000/controller\n');
+
+// Poll so the controller's QR code follows Wi-Fi joins and DHCP changes.
+const certificate = readCertificate(config.env);
+async function refreshParticipantLinks() {
+  const links = participantLinks(config.env, undefined, certificate);
+  if (JSON.stringify(links) !== JSON.stringify(global.get('participantLinks'))) {
+    await global.set({ participantLinks: links });
+  }
+  return links;
+}
+const links = await refreshParticipantLinks();
+const linkTimer = setInterval(() => refreshParticipantLinks().catch(console.error), 5000);
+const protocol = config.env.useHttps ? 'https' : 'http';
+console.log(`\n手机端: ${links[0]?.url ?? '（未检测到局域网地址，请连接 Wi-Fi）'}\n研究者控制端: ${protocol}://localhost:${config.env.port}/controller（页面内有手机二维码）\n`);
 
 let stopping = false;
 async function shutdown() {
@@ -56,6 +70,7 @@ async function shutdown() {
     return;
   }
   stopping = true;
+  clearInterval(linkTimer);
   await commands;
   await session.close();
   await server.stop();

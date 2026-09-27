@@ -26,6 +26,21 @@ button.disabled = true;
 guide.append(button);
 document.body.append(guide);
 
+// Names the two actions from the introduction, never which sound they control:
+// that differs between phases and players.
+function createGestureGuide() {
+  const gestures = document.createElement('div');
+  gestures.className = 'gestures';
+  gestures.setAttribute('aria-hidden', 'true');
+  for (const [kind, label] of [['shake', '晃动'], ['tilt', '倾斜']]) {
+    const figure = document.createElement('figure');
+    figure.className = `gesture gesture-${kind}`;
+    figure.innerHTML = `<div class="gesture-stage"><span class="gesture-phone"></span></div><figcaption>${label}</figcaption>`;
+    gestures.append(figure);
+  }
+  return gestures;
+}
+
 const client = new Client(loadConfig());
 const audioContext = new AudioContext({ latencyHint: 'interactive' });
 client.pluginManager.register('platform-init', ClientPluginPlatformInit, { audioContext, devicemotion });
@@ -186,6 +201,9 @@ async function main() {
   removeMotion = () => devicemotion.removeEventListener(onMotion);
   guide.remove();
   document.body.classList.add('performing');
+  if (params.gestureGuide) {
+    document.body.append(createGestureGuide());
+  }
   document.title = '';
   for (const type of ['touchstart', 'touchmove', 'touchend', 'contextmenu', 'dblclick']) {
     document.addEventListener(type, event => event.preventDefault(), { passive: false });

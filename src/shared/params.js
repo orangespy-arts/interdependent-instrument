@@ -20,6 +20,9 @@ export const params = {
   // Study decisions still to be filled in after piloting; this is in minutes.
   phaseDuration: null,
   phaseOrder: ['familiarization', 'division', 'modulation', 'consensus'],
+  // Dim shake/tilt drawings on the dark performing screen, identical in every
+  // phase. false restores the fully black screen described in Appendix 4.A.
+  gestureGuide: true,
   featuresHz: 30,
   logHz: 25,
   scheduleAhead: 0.1,

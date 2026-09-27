@@ -142,6 +142,13 @@ h2, h3, p { margin-top: 0; }
 .connect-panel .section-heading { margin-bottom: 13px; }
 .link-symbol { color: #a4b394; font-size: 17px; }
 .connect-panel > p:not(.field-help) { font-size: 10px; color: #8c9a7f; line-height: 1.9; margin-bottom: 9px; }
+.qr-code { width: 184px; max-width: 100%; aspect-ratio: 1; margin: 4px auto 14px; padding: 6px; background: #fff; border: 1px solid #dde1d6; border-radius: 10px; }
+.qr-code svg { display: block; width: 100%; height: 100%; }
+.qr-code.is-empty { display: grid; place-items: center; text-align: center; color: #9aa58e; font-size: 10px; background: #f4f5ef; }
+.link-choices { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.link-choice { background: transparent; border: 1px solid #dee6d4; border-radius: 20px; padding: 4px 10px; color: #82966e; font-size: 10px; }
+.link-choice.is-active { background: #eef3e7; border-color: #b9c9a7; color: #4e6a44; }
+.connect-panel .field-help.is-warning { color: #ab704e; }
 .participant-url { display: block; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.7; text-decoration: none; color: #637e52; }
 .participant-url:hover { text-decoration: underline; }
 .copy-button { width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: 1px solid #dee6d4; border-radius: 5px; padding: 9px 10px; color: #82966e; font-size: 10px; margin-top: 12px; }

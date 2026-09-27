@@ -1,3 +1,5 @@
+import QRCode from 'qrcode';
+
 const PHASES = {
   idle: { label: '待机', number: '00', note: '声部已静音，等待研究者开始。' },
   familiarization: { label: '熟悉阶段', number: '01', note: '各自的倾斜与动作强度，控制各自的声部。' },
@@ -33,7 +35,7 @@ function playerMarkup(index) {
       <div class="phone-identity"><span class="phone-letter">${letter}</span><div><h3>手机 ${letter}</h3><span class="muted small">声部 ${index}</span></div></div>
       <span class="status-pill is-offline" data-field="status"><i></i>未连接</span>
     </header>
-    <div class="phone-empty" data-field="empty"><span class="phone-outline" aria-hidden="true"></span><p>等待手机加入</p><span>在同一 Wi-Fi 下打开参与者网址</span></div>
+    <div class="phone-empty" data-field="empty"><span class="phone-outline" aria-hidden="true"></span><p>等待手机加入</p><span>扫描“连接手机”中的二维码</span></div>
     <div class="phone-data" data-field="data" hidden>
       <div class="signal-row"><span><i class="legend-dot tilt"></i>倾斜</span><strong data-field="tilt">—</strong></div>
       <svg class="signal-chart" viewBox="0 0 320 46" preserveAspectRatio="none" role="img" aria-label="最近 10 秒的倾斜曲线"><path class="chart-grid" d="M0 1H320M0 23H320M0 45H320"/><path class="chart-line tilt" data-field="tilt-path"/></svg>
@@ -58,7 +60,9 @@ export function mountController({ container, global, players, sync, sendCommand,
   const peakFlashes = [-Infinity, -Infinity];
   const cleanups = [];
   const pendingTimers = new Set();
-  const participantUrl = new URL('/', window.location.href).href;
+  let selectedUrl = null;
+  let participantUrl = '';
+  let qrRequest = 0;
 
   container.classList.add('controller-root');
   container.innerHTML = `<div class="controller-shell">
@@ -86,7 +90,7 @@ export function mountController({ container, global, players, sync, sendCommand,
           <div class="recording-footnote"><span class="small-label">录像对齐</span><p>先开启录像，再记录和发送起始同步音。结束同步音应同时出现在录像与日志中。</p></div>
           <div class="log-detail" data-ui="log-detail" hidden><span class="small-label">日志文件</span><code data-ui="log-file"></code></div>
         </section>
-        <section class="connect-panel panel" aria-labelledby="connect-title"><div class="section-heading"><h2 id="connect-title">连接手机</h2><span class="link-symbol" aria-hidden="true">↗</span></div><p>两部手机与电脑连接同一 Wi-Fi，使用 HTTPS 打开：</p><a class="participant-url" href="${escapeHtml(participantUrl)}" target="_blank" rel="noopener" data-ui="participant-url">${escapeHtml(participantUrl)}</a><button class="copy-button" type="button" data-ui="copy-url">复制参与者网址 <span aria-hidden="true">⧉</span></button><p class="field-help" data-ui="address-note"></p></section>
+        <section class="connect-panel panel" aria-labelledby="connect-title"><div class="section-heading"><h2 id="connect-title">连接手机</h2><span class="link-symbol" aria-hidden="true">↗</span></div><p>两部手机与电脑连接同一 Wi-Fi，用相机扫码打开：</p><div class="qr-code is-empty" data-ui="qr" role="img" aria-label="参与者网址二维码">等待局域网地址</div><div class="link-choices" data-ui="link-choices" aria-label="选择网络接口" hidden></div><a class="participant-url" target="_blank" rel="noopener" data-ui="participant-url" hidden></a><button class="copy-button" type="button" data-ui="copy-url" disabled>复制参与者网址 <span aria-hidden="true">⧉</span></button><p class="field-help" data-ui="address-note"></p></section>
         <section class="setup-note"><span class="small-label">试运行前</span><p data-ui="duration-note"></p><p>双机音频同步、传感器方向、防锁屏与实际延迟仍需在真实手机上验收。</p><button class="text-button" type="button" data-phase="latency-test" aria-pressed="false">进入延迟测量 <span aria-hidden="true">↗</span></button><p class="field-help">本地与经网络路径各测至少 30 次。</p></section>
       </aside>
     </div>
@@ -203,9 +207,63 @@ export function mountController({ container, global, players, sync, sendCommand,
     ui('joint-status').innerHTML = `<i></i>${jointActive ? '已激活' : '未激活'}`;
     container.querySelector('.joint-panel').classList.toggle('is-active', jointActive);
     ui('joint-note').textContent = jointActive ? `共同层已启动 · 个人声部增益 ${Math.round((params.duckGain ?? 0.6) * 100)}%` : globalValues.phase === 'consensus' ? `等待两人动作峰值对齐 · 窗口 ${Math.round((params.alignWindow ?? 0.2) * 1000)} ms` : '仅在共识阶段，由服务器判断动作峰值对齐。';
+    if ('participantLinks' in updates) {
+      renderLinks();
+    }
     updateControls();
     updateFeedback();
     renderClock();
+  }
+
+  async function drawQr(url) {
+    const request = ++qrRequest;
+    const box = ui('qr');
+    if (!url) {
+      box.classList.add('is-empty');
+      box.textContent = '等待局域网地址';
+      return;
+    }
+    try {
+      const svg = await QRCode.toString(url, { type: 'svg', margin: 2, errorCorrectionLevel: 'M', color: { dark: '#23332f', light: '#ffffff' } });
+      if (disposed || request !== qrRequest) {
+        return;
+      }
+      // Markup produced by the QR library from a server-built URL.
+      box.innerHTML = svg;
+      box.classList.remove('is-empty');
+    } catch {
+      if (!disposed && request === qrRequest) {
+        box.classList.add('is-empty');
+        box.textContent = '二维码生成失败，请手动输入网址';
+      }
+    }
+  }
+
+  function renderLinks() {
+    const links = Array.isArray(globalValues.participantLinks) ? globalValues.participantLinks : [];
+    // A controller opened from a LAN address already uses one that works.
+    const link = links.find((entry) => entry.url === selectedUrl)
+      ?? links.find((entry) => new URL(entry.url).hostname === window.location.hostname)
+      ?? links[0]
+      ?? null;
+    selectedUrl = link?.url ?? null;
+    ui('link-choices').hidden = links.length < 2;
+    ui('link-choices').innerHTML = links.map((entry) => `<button type="button" class="link-choice${entry.url === selectedUrl ? ' is-active' : ''}" data-url="${escapeHtml(entry.url)}" aria-pressed="${entry.url === selectedUrl}">${escapeHtml(entry.name)}</button>`).join('');
+    ui('participant-url').hidden = !link;
+    ui('participant-url').href = link?.url ?? '#';
+    ui('participant-url').textContent = link?.url ?? '';
+    ui('copy-url').disabled = !link;
+    const note = ui('address-note');
+    note.classList.toggle('is-warning', link?.trusted === false || !link);
+    note.textContent = !link
+      ? '未检测到局域网地址。请让电脑连接 Wi-Fi，二维码会自动出现。'
+      : link.trusted === false
+        ? '证书不包含这个地址，手机会出现证书警告。请按 README 用当前 IP 重新生成 mkcert 证书并重启服务器。'
+        : `${link.trusted ? '已信任本机根证书的手机扫码后直接打开。' : '当前为自签名证书，手机首次打开需在证书警告中选择继续。'}请用系统浏览器（微信内选“在浏览器打开”）；连接中断时刷新手机页面重新加入。`;
+    if (selectedUrl !== (participantUrl || null)) {
+      participantUrl = selectedUrl ?? '';
+      drawQr(participantUrl);
+    }
   }
 
   function renderClock() {
@@ -301,7 +359,17 @@ export function mountController({ container, global, players, sync, sendCommand,
   ui('record-stop').addEventListener('click', async () => {
     await command('record-stop');
   });
+  ui('link-choices').addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-url]');
+    if (choice) {
+      selectedUrl = choice.dataset.url;
+      renderLinks();
+    }
+  });
   ui('copy-url').addEventListener('click', async () => {
+    if (!participantUrl) {
+      return;
+    }
     try {
       await navigator.clipboard.writeText(participantUrl);
       if (disposed) {
@@ -320,8 +388,6 @@ export function mountController({ container, global, players, sync, sendCommand,
     }
   });
 
-  const localAddress = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
-  ui('address-note').textContent = localAddress ? '当前是电脑本机地址。手机请将 localhost / 127.0.0.1 替换为电脑的局域网 IP；刷新手机页面可重新连接。' : '由研究者提前处理证书与传感器授权；如连接中断，刷新手机页面重新加入。';
   ui('duration-note').textContent = params.phaseDuration == null ? '阶段时长尚未确定（附录 4.A 的【X】）。请在试运行后填写参数。' : `阶段时长参数：${params.phaseDuration} 分钟。计时供观察，阶段不会自动切换。`;
 
   for (const unsubscribe of [
@@ -342,6 +408,7 @@ export function mountController({ container, global, players, sync, sendCommand,
   }
 
   renderGlobal();
+  renderLinks();
   renderPlayers(true);
   const signalInterval = setInterval(() => renderPlayers(true), 100);
   const clockInterval = setInterval(renderClock, 250);

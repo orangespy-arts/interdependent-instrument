@@ -10,6 +10,8 @@ export const globalDescription = {
   syncBeep: { type: 'float', default: null, event: true },
   logFile: { type: 'string', default: '' },
   error: { type: 'string', default: '' },
+  // [{ name, url, trusted }] for this server run; see server/participant-links.js.
+  participantLinks: { type: 'any', default: [] },
 };
 
 export const playerDescription = {
