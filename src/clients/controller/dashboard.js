@@ -1,10 +1,12 @@
+import QRCode from 'qrcode';
+
 const PHASES = {
-  idle: { label: '待机', number: '00', note: '声部已静音，等待研究者开始。' },
-  familiarization: { label: '熟悉阶段', number: '01', note: '各自的倾斜与动作强度，控制各自的声部。' },
-  division: { label: '分工', number: '02', note: '一人控制音高，一人控制节奏密度。' },
-  modulation: { label: '调制', number: '03', note: '各自独立发声，对方的动作强度改变音色。' },
-  consensus: { label: '共识', number: '04', note: '动作峰值对齐时，共同层加入，个人声部减弱。' },
-  'latency-test': { label: '延迟测量', number: 'T', note: '峰值触发本机与对方的 click，仅供设备测量。' },
+  idle: { label: 'Idle', number: '00', note: 'Voices are muted, waiting for the researcher to begin.' },
+  familiarization: { label: 'Familiarization', number: '01', note: 'Each player’s tilt and motion intensity control their own voice.' },
+  division: { label: 'Division', number: '02', note: 'One player controls pitch, the other controls rhythmic density.' },
+  modulation: { label: 'Modulation', number: '03', note: 'Each voice sounds independently; the partner’s motion intensity shapes its timbre.' },
+  consensus: { label: 'Consensus', number: '04', note: 'When motion peaks align, the joint layer comes in and the individual voices duck.' },
+  'latency-test': { label: 'Latency test', number: 'T', note: 'Each peak triggers a click on the same phone and on the partner’s. For device measurement only.' },
 };
 
 const ORDERS = [
@@ -18,7 +20,7 @@ const ORDERS = [
 
 const clamp = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[char]));
-const latency = (value) => Number.isFinite(value) && value >= 0 ? `${(value * 1000).toFixed(1)} ms` : '未提供';
+const latency = (value) => Number.isFinite(value) && value >= 0 ? `${(value * 1000).toFixed(1)} ms` : 'n/a';
 
 function formatTime(seconds) {
   const total = Math.max(0, Math.floor(seconds || 0));
@@ -28,24 +30,24 @@ function formatTime(seconds) {
 
 function playerMarkup(index) {
   const letter = index === 0 ? 'A' : 'B';
-  return `<article class="phone-card" data-player="${index}" aria-label="手机 ${letter}">
+  return `<article class="phone-card" data-player="${index}" aria-label="Phone ${letter}">
     <header class="phone-heading">
-      <div class="phone-identity"><span class="phone-letter">${letter}</span><div><h3>手机 ${letter}</h3><span class="muted small">声部 ${index}</span></div></div>
-      <span class="status-pill is-offline" data-field="status"><i></i>未连接</span>
+      <div class="phone-identity"><span class="phone-letter">${letter}</span><div><h3>Phone ${letter}</h3><span class="muted small">Voice ${index}</span></div></div>
+      <span class="status-pill is-offline" data-field="status"><i></i>Not connected</span>
     </header>
-    <div class="phone-empty" data-field="empty"><span class="phone-outline" aria-hidden="true"></span><p>等待手机加入</p><span>在同一 Wi-Fi 下打开参与者网址</span></div>
+    <div class="phone-empty" data-field="empty"><span class="phone-outline" aria-hidden="true"></span><p>Waiting for a phone to join</p><span>Scan the QR code under “Connect phones”</span></div>
     <div class="phone-data" data-field="data" hidden>
-      <div class="signal-row"><span><i class="legend-dot tilt"></i>倾斜</span><strong data-field="tilt">—</strong></div>
-      <svg class="signal-chart" viewBox="0 0 320 46" preserveAspectRatio="none" role="img" aria-label="最近 10 秒的倾斜曲线"><path class="chart-grid" d="M0 1H320M0 23H320M0 45H320"/><path class="chart-line tilt" data-field="tilt-path"/></svg>
-      <div class="signal-row"><span><i class="legend-dot intensity"></i>动作强度</span><strong data-field="intensity">—</strong></div>
-      <svg class="signal-chart" viewBox="0 0 320 46" preserveAspectRatio="none" role="img" aria-label="最近 10 秒的动作强度曲线"><path class="chart-grid" d="M0 1H320M0 23H320M0 45H320"/><path class="chart-line intensity" data-field="intensity-path"/></svg>
-      <div class="peak-line"><span class="peak-indicator" data-field="peak-dot"></span><span>动作峰值</span><span class="muted" data-field="peak-label">尚未检测到</span></div>
-      <dl class="device-facts"><div><dt>传感器</dt><dd data-field="sensor">—</dd></div><div><dt>音频</dt><dd data-field="audio">—</dd></div><div><dt>防锁屏</dt><dd data-field="wake">—</dd></div><div><dt>页面</dt><dd data-field="visibility">—</dd></div><div><dt>基础延迟</dt><dd data-field="base">—</dd></div><div><dt>输出延迟</dt><dd data-field="output">—</dd></div></dl>
+      <div class="signal-row"><span><i class="legend-dot tilt"></i>Tilt</span><strong data-field="tilt">—</strong></div>
+      <svg class="signal-chart" viewBox="0 0 320 46" preserveAspectRatio="none" role="img" aria-label="Tilt over the last 10 seconds"><path class="chart-grid" d="M0 1H320M0 23H320M0 45H320"/><path class="chart-line tilt" data-field="tilt-path"/></svg>
+      <div class="signal-row"><span><i class="legend-dot intensity"></i>Motion intensity</span><strong data-field="intensity">—</strong></div>
+      <svg class="signal-chart" viewBox="0 0 320 46" preserveAspectRatio="none" role="img" aria-label="Motion intensity over the last 10 seconds"><path class="chart-grid" d="M0 1H320M0 23H320M0 45H320"/><path class="chart-line intensity" data-field="intensity-path"/></svg>
+      <div class="peak-line"><span class="peak-indicator" data-field="peak-dot"></span><span>Motion peak</span><span class="muted" data-field="peak-label">None detected yet</span></div>
+      <dl class="device-facts"><div><dt>Sensor</dt><dd data-field="sensor">—</dd></div><div><dt>Audio</dt><dd data-field="audio">—</dd></div><div><dt>Wake lock</dt><dd data-field="wake">—</dd></div><div><dt>Page</dt><dd data-field="visibility">—</dd></div><div><dt>Base latency</dt><dd data-field="base">—</dd></div><div><dt>Output latency</dt><dd data-field="output">—</dd></div></dl>
     </div>
   </article>`;
 }
 
-/** The controller is the only surface that exposes experiment rules and state. */
+/** The controller is the only surface that exposes experiment state; phones show only their current rule. */
 export function mountController({ container, global, players, sync, sendCommand, params }) {
   let globalValues = global.getValues();
   let disposed = false;
@@ -58,40 +60,44 @@ export function mountController({ container, global, players, sync, sendCommand,
   const peakFlashes = [-Infinity, -Infinity];
   const cleanups = [];
   const pendingTimers = new Set();
-  const participantUrl = new URL('/', window.location.href).href;
+  let selectedUrl = null;
+  let participantUrl = '';
+  let qrRequest = 0;
 
   container.classList.add('controller-root');
   container.innerHTML = `<div class="controller-shell">
-    <header class="page-heading"><a class="brand" href="/controller"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>Interdependent<br><strong>Instrument</strong></span></a><div class="heading-meta"><span class="eyebrow">双人声音交互 · 研究原型</span><span class="connection-label"><i></i>控制端已连接</span></div></header>
-    <div class="overview-heading"><div><span class="eyebrow">RESEARCH CONSOLE</span><h1>一起，听见动作。</h1><p>控制体验进程，观察两部手机的实时响应。</p></div><span class="session-badge" data-ui="session-badge">尚未记录</span></div>
+    <header class="page-heading"><a class="brand" href="/controller"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>Interdependent<br><strong>Instrument</strong></span></a><div class="heading-meta"><span class="eyebrow">Two-person sound interaction · Research prototype</span><span class="connection-label"><i></i>Controller connected</span></div></header>
+    <div class="overview-heading"><div><span class="eyebrow">RESEARCH CONSOLE</span><h1>Hear movement, together.</h1><p>Run the session and watch both phones respond in real time.</p></div><span class="session-badge" data-ui="session-badge">Not recording</span></div>
     <div class="workspace-grid">
       <main class="main-column">
         <section class="phase-panel panel" aria-labelledby="phase-panel-title">
-          <div class="section-heading"><h2 id="phase-panel-title">体验阶段</h2><span class="muted small">手动切换 · 统一提示音</span></div>
-          <div class="phase-hero"><div class="phase-current"><span class="phase-number" data-ui="phase-number">00</span><div><span class="eyebrow">当前阶段</span><h3 data-ui="phase-title">待机</h3></div></div><div class="phase-clock"><span data-ui="timer">00:00</span><small>阶段已进行</small></div></div>
+          <div class="section-heading"><h2 id="phase-panel-title">Phases</h2><span class="muted small">Switched manually · same cue tone for every phase</span></div>
+          <div class="phase-hero"><div class="phase-current"><span class="phase-number" data-ui="phase-number">00</span><div><span class="eyebrow">Current phase</span><h3 data-ui="phase-title">Idle</h3></div></div><div class="phase-clock"><span data-ui="timer">00:00</span><small>Time in phase</small></div></div>
           <p class="phase-description" data-ui="phase-description"></p>
-          <div class="phase-buttons" aria-label="切换体验阶段">${['familiarization', 'division', 'modulation', 'consensus'].map((phase, index) => `<button type="button" class="phase-button" data-phase="${phase}" aria-pressed="false"><span>0${index + 1}</span>${PHASES[phase].label}</button>`).join('')}</div>
-          <div class="phase-bottom"><button type="button" class="quiet-button" data-phase="idle" aria-pressed="false"><span class="stop-icon" aria-hidden="true"></span>待机 / 静音</button><label class="swap-control"><input type="checkbox" data-ui="swap"><span class="switch-track" aria-hidden="true"></span>交换分工角色</label></div>
+          <div class="phase-buttons" aria-label="Switch phase">${['familiarization', 'division', 'modulation', 'consensus'].map((phase, index) => `<button type="button" class="phase-button" data-phase="${phase}" aria-pressed="false"><span>0${index + 1}</span>${PHASES[phase].label}</button>`).join('')}</div>
+          <div class="phase-bottom"><button type="button" class="quiet-button" data-phase="idle" aria-pressed="false"><span class="stop-icon" aria-hidden="true"></span>Idle / mute</button><label class="swap-control"><input type="checkbox" data-ui="swap"><span class="switch-track" aria-hidden="true"></span>Swap division roles</label></div>
           <div class="division-note" data-ui="division-note" hidden></div>
         </section>
-        <section class="devices-section" aria-labelledby="devices-title"><div class="section-heading devices-heading"><div class="heading-with-count"><h2 id="devices-title">参与者设备</h2><span data-ui="device-count">0 / 2</span></div><span class="muted small">实时特征 · 最近 10 秒</span></div><div class="phone-grid">${playerMarkup(0)}${playerMarkup(1)}</div></section>
-        <section class="joint-panel" aria-label="共识共同层"><div><span class="joint-symbol" aria-hidden="true"><i></i><i></i></span><div><h3>共同层</h3><p data-ui="joint-note">仅在共识阶段，由服务器判断动作峰值对齐。</p></div></div><span class="status-pill is-offline" data-ui="joint-status"><i></i>未激活</span></section>
+        <section class="devices-section" aria-labelledby="devices-title"><div class="section-heading devices-heading"><div class="heading-with-count"><h2 id="devices-title">Participant devices</h2><span data-ui="device-count">0 / 2</span></div><span class="muted small">Live features · last 10 seconds</span></div><div class="phone-grid">${playerMarkup(0)}${playerMarkup(1)}</div></section>
+        <section class="joint-panel" aria-label="Consensus joint layer"><div><span class="joint-symbol" aria-hidden="true"><i></i><i></i></span><div><h3>Joint layer</h3><p data-ui="joint-note">Consensus phase only: the server detects when motion peaks align.</p></div></div><span class="status-pill is-offline" data-ui="joint-status"><i></i>Inactive</span></section>
       </main>
       <aside class="side-column">
-        <section class="record-panel panel" aria-labelledby="record-title"><div class="section-heading"><h2 id="record-title">记录一组体验</h2><span class="record-light" data-ui="record-light" aria-hidden="true"></span></div>
-          <label class="field-label" for="group-id">组别编号</label><input id="group-id" data-ui="group-id" class="text-input" type="text" maxlength="40" placeholder="例如 G01" autocomplete="off" value="${escapeHtml(globalValues.groupId)}">
-          <label class="field-label" for="phase-order">阶段顺序</label><select id="phase-order" class="select-input" data-ui="order">${ORDERS.map((order, i) => `<option value="${i}">${order.map((phase) => PHASES[phase].label).join(' → ')}</option>`).join('')}</select><p class="field-help">熟悉阶段固定在最前；顺序写入日志，阶段由研究者手动切换。</p>
-          <button class="primary-button" type="button" data-ui="record-start"><span class="record-icon" aria-hidden="true"></span>开始记录</button>
-          <div class="recording-controls" data-ui="recording-controls" hidden><div class="recording-label"><i></i>正在记录 <strong data-ui="record-group"></strong></div><div class="sync-buttons"><button type="button" class="secondary-button" data-ui="start-beep">起始同步音</button><button type="button" class="secondary-button" data-ui="end-beep">结束同步音</button></div><button type="button" class="stop-record-button" data-ui="record-stop" disabled>停止记录</button><p class="field-help" data-ui="stop-help">开始与结束各发一次同步音。发送结束同步音后，即可停止记录。</p></div>
-          <div class="recording-footnote"><span class="small-label">录像对齐</span><p>先开启录像，再记录和发送起始同步音。结束同步音应同时出现在录像与日志中。</p></div>
-          <div class="log-detail" data-ui="log-detail" hidden><span class="small-label">日志文件</span><code data-ui="log-file"></code></div>
+        <section class="record-panel panel" aria-labelledby="record-title"><div class="section-heading"><h2 id="record-title">Record a session</h2><span class="record-light" data-ui="record-light" aria-hidden="true"></span></div>
+          <label class="field-label" for="group-id">Group ID</label><input id="group-id" data-ui="group-id" class="text-input" type="text" maxlength="40" placeholder="e.g. G01" autocomplete="off" value="${escapeHtml(globalValues.groupId)}">
+          <label class="field-label" for="phase-order">Phase order</label><select id="phase-order" class="select-input" data-ui="order">${ORDERS.map((order, i) => `<option value="${i}">${order.map((phase) => PHASES[phase].label).join(' → ')}</option>`).join('')}</select><p class="field-help">Familiarization always comes first. The order is written to the log; the researcher still switches phases by hand.</p>
+          <button class="primary-button" type="button" data-ui="record-start"><span class="record-icon" aria-hidden="true"></span>Start recording</button>
+          <div class="recording-controls" data-ui="recording-controls" hidden><div class="recording-label"><i></i>Recording <strong data-ui="record-group"></strong></div><button type="button" class="mark-button" data-ui="mark" title="Note this moment to revisit in the interview (shortcut: M)"><span class="mark-icon" aria-hidden="true"></span>Mark this moment<kbd>M</kbd></button><div class="sync-buttons"><button type="button" class="secondary-button" data-ui="start-beep">Start sync beep</button><button type="button" class="secondary-button" data-ui="end-beep">End sync beep</button></div><button type="button" class="stop-record-button" data-ui="record-stop" disabled>Stop recording</button><p class="field-help" data-ui="stop-help">Send one sync beep at the start and one at the end. Once the end sync beep is sent, you can stop recording.</p></div>
+          <div class="recording-footnote"><span class="small-label">Video alignment</span><p>Start the video first, then start recording and send the start sync beep. The end sync beep should appear in both the video and the log.</p></div>
+          <div class="log-detail" data-ui="log-detail" hidden><span class="small-label">Log file</span><code data-ui="log-file"></code></div>
         </section>
-        <section class="connect-panel panel" aria-labelledby="connect-title"><div class="section-heading"><h2 id="connect-title">连接手机</h2><span class="link-symbol" aria-hidden="true">↗</span></div><p>两部手机与电脑连接同一 Wi-Fi，使用 HTTPS 打开：</p><a class="participant-url" href="${escapeHtml(participantUrl)}" target="_blank" rel="noopener" data-ui="participant-url">${escapeHtml(participantUrl)}</a><button class="copy-button" type="button" data-ui="copy-url">复制参与者网址 <span aria-hidden="true">⧉</span></button><p class="field-help" data-ui="address-note"></p></section>
-        <section class="setup-note"><span class="small-label">试运行前</span><p data-ui="duration-note"></p><p>双机音频同步、传感器方向、防锁屏与实际延迟仍需在真实手机上验收。</p><button class="text-button" type="button" data-phase="latency-test" aria-pressed="false">进入延迟测量 <span aria-hidden="true">↗</span></button><p class="field-help">本地与经网络路径各测至少 30 次。</p></section>
+        <section class="marks-panel panel" aria-labelledby="marks-title"><div class="section-heading"><h2 id="marks-title">Interview marks</h2><span class="muted small" data-ui="mark-count">0 marks</span></div><p class="field-help" data-ui="marks-help">While recording, press “Mark this moment” or the M key to note moments worth revisiting in the interview. Notes can be added later.</p><ol class="mark-list" data-ui="mark-list"></ol><button class="copy-button" type="button" data-ui="copy-marks" disabled>Copy mark list <span aria-hidden="true">⧉</span></button></section>
+        <section class="reset-panel" aria-labelledby="reset-title"><span class="small-label" id="reset-title">Next group or recovery</span><p>Disconnects both phones and returns to idle. Each phone then shows “Please scan the QR code again to join” and must rescan. Unavailable while recording.</p><button type="button" class="reset-button" data-ui="reset">Reset system</button></section>
+        <section class="connect-panel panel" aria-labelledby="connect-title"><div class="section-heading"><h2 id="connect-title">Connect phones</h2><span class="link-symbol" aria-hidden="true">↗</span></div><p>Connect both phones to the same Wi-Fi as this computer, then scan with the camera to open:</p><div class="qr-code is-empty" data-ui="qr" role="img" aria-label="QR code for the participant URL">Waiting for a local network address</div><div class="link-choices" data-ui="link-choices" aria-label="Choose a network interface" hidden></div><a class="participant-url" target="_blank" rel="noopener" data-ui="participant-url" hidden></a><button class="copy-button" type="button" data-ui="copy-url" disabled>Copy participant URL <span aria-hidden="true">⧉</span></button><p class="field-help" data-ui="address-note"></p></section>
+        <section class="setup-note"><span class="small-label">Before piloting</span><p data-ui="duration-note"></p><p>Audio sync between the two phones, sensor orientation, wake lock and actual latency still need to be verified on real phones.</p><button class="text-button" type="button" data-phase="latency-test" aria-pressed="false">Switch to latency test <span aria-hidden="true">↗</span></button><p class="field-help">Measure the local and the network path at least 30 times each.</p></section>
       </aside>
     </div>
     <div class="command-feedback" data-ui="feedback" role="status" aria-live="polite" hidden></div>
-    <footer class="page-footer"><span>动作相同，关系不同。</span><span>soundworks v5 · 研究者界面</span></footer>
+    <footer class="page-footer"><span>Same movements, different relationships.</span><span>soundworks v5 · Researcher interface</span></footer>
   </div>`;
 
   const ui = (key) => container.querySelector(`[data-ui="${key}"]`);
@@ -139,7 +145,12 @@ export function mountController({ container, global, players, sync, sendCommand,
     ui('end-beep').disabled = busy || !recording;
     ui('record-stop').disabled = busy || !recording;
     ui('swap').disabled = busy;
-    ui('stop-help').textContent = endSyncReady ? '结束同步音已安排。确认录像保留了这一声后，停止记录。' : '停止记录前，请先发送结束同步音，并确认录像收到了这一声。';
+    ui('mark').disabled = !recording;
+    ui('reset').disabled = busy || recording;
+    ui('mark-list').querySelectorAll('input').forEach((input) => {
+      input.disabled = !recording;
+    });
+    ui('stop-help').textContent = endSyncReady ? 'End sync beep scheduled. Once you’ve confirmed the video caught it, stop recording.' : 'Before you stop recording, send the end sync beep and check that the video caught it.';
   }
 
   async function command(action, payload = {}, successMessage = '') {
@@ -159,7 +170,7 @@ export function mountController({ container, global, players, sync, sendCommand,
       commandMessage = successMessage;
       return true;
     } catch (error) {
-      commandError = error?.message || '操作未完成，请检查服务器连接后重试。';
+      commandError = error?.message || 'The action did not complete. Check the server connection and try again.';
       return false;
     } finally {
       busy = false;
@@ -184,7 +195,7 @@ export function mountController({ container, global, players, sync, sendCommand,
     });
     ui('swap').checked = Boolean(globalValues.divisionSwap);
     ui('division-note').hidden = globalValues.phase !== 'division';
-    ui('division-note').textContent = globalValues.divisionSwap ? '手机 B → 音高　·　手机 A → 节奏密度' : '手机 A → 音高　·　手机 B → 节奏密度';
+    ui('division-note').textContent = globalValues.divisionSwap ? 'Phone B → pitch · Phone A → rhythmic density' : 'Phone A → pitch · Phone B → rhythmic density';
     const recording = Boolean(globalValues.recording);
     if (wasRecording !== recording) {
       endSyncReady = false;
@@ -193,19 +204,142 @@ export function mountController({ container, global, players, sync, sendCommand,
       ui('group-id').value = globalValues.groupId || '';
     }
     ui('record-group').textContent = globalValues.groupId || '';
-    ui('session-badge').textContent = recording ? `${globalValues.groupId || '本组'} · 记录中` : globalValues.logFile ? '记录已结束' : '尚未记录';
+    ui('session-badge').textContent = recording ? `${globalValues.groupId || 'This group'} · Recording` : globalValues.logFile ? 'Recording ended' : 'Not recording';
     ui('session-badge').classList.toggle('is-recording', recording);
     ui('record-light').classList.toggle('is-recording', recording);
     ui('log-detail').hidden = !globalValues.logFile;
     ui('log-file').textContent = globalValues.logFile || '';
     const jointActive = Boolean(globalValues.jointActive);
     ui('joint-status').className = `status-pill ${jointActive ? 'is-ready' : 'is-offline'}`;
-    ui('joint-status').innerHTML = `<i></i>${jointActive ? '已激活' : '未激活'}`;
+    ui('joint-status').innerHTML = `<i></i>${jointActive ? 'Active' : 'Inactive'}`;
     container.querySelector('.joint-panel').classList.toggle('is-active', jointActive);
-    ui('joint-note').textContent = jointActive ? `共同层已启动 · 个人声部增益 ${Math.round((params.duckGain ?? 0.6) * 100)}%` : globalValues.phase === 'consensus' ? `等待两人动作峰值对齐 · 窗口 ${Math.round((params.alignWindow ?? 0.2) * 1000)} ms` : '仅在共识阶段，由服务器判断动作峰值对齐。';
+    ui('joint-note').textContent = jointActive ? `Joint layer on · individual voice gain ${Math.round((params.duckGain ?? 0.6) * 100)}%` : globalValues.phase === 'consensus' ? `Waiting for both players’ motion peaks to align · window ${Math.round((params.alignWindow ?? 0.2) * 1000)} ms` : 'Consensus phase only: the server detects when motion peaks align.';
+    if ('participantLinks' in updates) {
+      renderLinks();
+    }
+    renderMarks();
     updateControls();
     updateFeedback();
     renderClock();
+  }
+
+  async function drawQr(url) {
+    const request = ++qrRequest;
+    const box = ui('qr');
+    if (!url) {
+      box.classList.add('is-empty');
+      box.textContent = 'Waiting for a local network address';
+      return;
+    }
+    try {
+      const svg = await QRCode.toString(url, { type: 'svg', margin: 2, errorCorrectionLevel: 'M', color: { dark: '#23332f', light: '#ffffff' } });
+      if (disposed || request !== qrRequest) {
+        return;
+      }
+      // Markup produced by the QR library from a server-built URL.
+      box.innerHTML = svg;
+      box.classList.remove('is-empty');
+    } catch {
+      if (!disposed && request === qrRequest) {
+        box.classList.add('is-empty');
+        box.textContent = 'Could not create the QR code. Enter the URL manually.';
+      }
+    }
+  }
+
+  function renderLinks() {
+    const links = Array.isArray(globalValues.participantLinks) ? globalValues.participantLinks : [];
+    // A controller opened from a LAN address already uses one that works.
+    const link = links.find((entry) => entry.url === selectedUrl)
+      ?? links.find((entry) => new URL(entry.url).hostname === window.location.hostname)
+      ?? links[0]
+      ?? null;
+    selectedUrl = link?.url ?? null;
+    ui('link-choices').hidden = links.length < 2;
+    ui('link-choices').innerHTML = links.map((entry) => `<button type="button" class="link-choice${entry.url === selectedUrl ? ' is-active' : ''}" data-url="${escapeHtml(entry.url)}" aria-pressed="${entry.url === selectedUrl}">${escapeHtml(entry.name)}</button>`).join('');
+    ui('participant-url').hidden = !link;
+    ui('participant-url').href = link?.url ?? '#';
+    ui('participant-url').textContent = link?.url ?? '';
+    ui('copy-url').disabled = !link;
+    const note = ui('address-note');
+    note.classList.toggle('is-warning', link?.trusted === false || !link);
+    note.textContent = !link
+      ? 'No local network address found. Connect this computer to Wi-Fi and the QR code will appear automatically.'
+      : link.trusted === false
+        ? 'The certificate does not cover this address, so phones will show a certificate warning. Regenerate the mkcert certificate for the current IP (see README) and restart the server.'
+        : `${link.trusted ? 'Phones that trust this computer’s root certificate open it directly. ' : 'The certificate is self-signed: on first visit, each phone must continue past the certificate warning. '}Use the system browser, not an in-app one (in WeChat, choose “Open in browser”). If the connection drops, reload the page on the phone to rejoin.`;
+    if (selectedUrl !== (participantUrl || null)) {
+      participantUrl = selectedUrl ?? '';
+      drawQr(participantUrl);
+    }
+  }
+
+  const marks = () => (Array.isArray(globalValues.marks) ? globalValues.marks : []);
+  const videoTime = (mark) => mark.sinceBeep === null || mark.sinceBeep === undefined
+    ? 'No start sync beep'
+    : mark.sinceBeep < 0 ? 'Before start sync beep' : `Video ${formatTime(mark.sinceBeep)}`;
+  const phaseTime = (mark) => mark.phaseElapsed === null || mark.phaseElapsed === undefined ? '' : `In phase ${formatTime(mark.phaseElapsed)}`;
+  const phaseLabel = (mark) => (PHASES[mark.phase] || PHASES.idle).label;
+
+  // Rows are updated in place so a note being typed is not overwritten.
+  function renderMarks() {
+    const list = ui('mark-list');
+    const entries = marks();
+    const keep = new Set(entries.map((mark) => String(mark.n)));
+    list.querySelectorAll('[data-mark]').forEach((row) => {
+      if (!keep.has(row.dataset.mark)) {
+        row.remove();
+      }
+    });
+    entries.forEach((mark) => {
+      let row = list.querySelector(`[data-mark="${mark.n}"]`);
+      if (!row) {
+        row = document.createElement('li');
+        row.className = 'mark-row';
+        row.dataset.mark = String(mark.n);
+        row.innerHTML = `<div class="mark-meta"><strong>M${mark.n}</strong><span data-field="phase"></span><span data-field="video"></span><span class="muted" data-field="phase-time"></span></div><input class="mark-note" type="text" maxlength="200" placeholder="Note, e.g. joint layer appears, both stop" aria-label="Note for mark M${mark.n}">`;
+        list.prepend(row);
+      }
+      row.querySelector('[data-field="phase"]').textContent = phaseLabel(mark);
+      row.querySelector('[data-field="video"]').textContent = videoTime(mark);
+      row.querySelector('[data-field="phase-time"]').textContent = phaseTime(mark);
+      const input = row.querySelector('input');
+      if (document.activeElement !== input) {
+        input.value = mark.note || '';
+      }
+      input.disabled = !globalValues.recording;
+    });
+    ui('mark-count').textContent = `${entries.length} ${entries.length === 1 ? 'mark' : 'marks'}`;
+    ui('copy-marks').disabled = entries.length === 0;
+  }
+
+  function marksText() {
+    const header = `${globalValues.groupId || ''} interview marks (video time counted from the start sync beep)`;
+    return [header, ...marks().map((mark) => [`M${mark.n}`, phaseLabel(mark), videoTime(mark), phaseTime(mark), mark.note || ''].filter(Boolean).join('\t'))].join('\n');
+  }
+
+  // Marks bypass the busy lock: a click must never be dropped because another command is in flight.
+  async function markNow() {
+    if (!globalValues.recording || disposed) {
+      return;
+    }
+    const time = now();
+    const button = ui('mark');
+    button.classList.add('is-flash');
+    later(() => button.classList.remove('is-flash'), 350);
+    try {
+      await sendCommand('mark', { time });
+      if (!disposed) {
+        commandError = '';
+        commandMessage = 'Moment marked. You can add a note under “Interview marks”.';
+        updateFeedback();
+      }
+    } catch (error) {
+      if (!disposed) {
+        commandError = error?.message || 'The mark was not saved. Please try again.';
+        updateFeedback();
+      }
+    }
   }
 
   function renderClock() {
@@ -243,7 +377,7 @@ export function mountController({ container, global, players, sync, sendCommand,
       field('data').hidden = !player;
       if (!player) {
         field('status').className = 'status-pill is-offline';
-        field('status').innerHTML = '<i></i>未连接';
+        field('status').innerHTML = '<i></i>Not connected';
         histories[index] = [];
         lastPeaks[index] = null;
         return;
@@ -251,7 +385,7 @@ export function mountController({ container, global, players, sync, sendCommand,
       const stale = Number.isFinite(player.lastSeen) && player.lastSeen > 0 && time - player.lastSeen > 5;
       const ready = player.ready && !stale;
       field('status').className = `status-pill ${ready ? 'is-ready' : 'is-waiting'}`;
-      field('status').innerHTML = `<i></i>${stale ? '更新中断' : ready ? '已就绪' : '等待开始'}`;
+      field('status').innerHTML = `<i></i>${stale ? 'Updates stalled' : ready ? 'Ready' : 'Waiting to start'}`;
       if (sample && !stale && player.sensorAvailable) {
         histories[index].push({ t: time, tilt: player.tilt, intensity: player.intensity });
       }
@@ -262,11 +396,11 @@ export function mountController({ container, global, players, sync, sendCommand,
       field('intensity-path').setAttribute('d', chartPath(histories[index], 'intensity', time));
       const flashing = performance.now() - peakFlashes[index] < 350;
       field('peak-dot').classList.toggle('is-active', flashing);
-      field('peak-label').textContent = lastPeaks[index] === null ? '尚未检测到' : flashing ? '检测到峰值' : `${Math.max(0, time - lastPeaks[index]).toFixed(1)} 秒前`;
-      field('sensor').textContent = player.sensorAvailable ? '可用' : '未就绪';
-      field('audio').textContent = ({ running: '运行中', suspended: '已暂停', closed: '已关闭', interrupted: '已中断' })[player.audioState] || '未启动';
-      field('wake').textContent = player.wakeLock ? '保持唤醒' : '未启用';
-      field('visibility').textContent = player.visibility === 'visible' ? '前台' : player.visibility === 'hidden' ? '后台' : '未知';
+      field('peak-label').textContent = lastPeaks[index] === null ? 'None detected yet' : flashing ? 'Peak detected' : `${Math.max(0, time - lastPeaks[index]).toFixed(1)} s ago`;
+      field('sensor').textContent = player.sensorAvailable ? 'Available' : 'Not ready';
+      field('audio').textContent = ({ running: 'Running', suspended: 'Suspended', closed: 'Closed', interrupted: 'Interrupted' })[player.audioState] || 'Not started';
+      field('wake').textContent = player.wakeLock ? 'On' : 'Off';
+      field('visibility').textContent = player.visibility === 'visible' ? 'Foreground' : player.visibility === 'hidden' ? 'Background' : 'Unknown';
       field('base').textContent = latency(player.baseLatency);
       field('output').textContent = latency(player.outputLatency);
     });
@@ -284,16 +418,16 @@ export function mountController({ container, global, players, sync, sendCommand,
   ui('record-start').addEventListener('click', async () => {
     const groupId = ui('group-id').value.trim();
     if (!groupId) {
-      commandError = '请输入本组的组别编号，再开始记录。';
+      commandError = 'Enter a group ID before you start recording.';
       updateFeedback();
       ui('group-id').focus();
       return;
     }
     await command('record-start', { groupId, order: ['familiarization', ...ORDERS[Number(ui('order').value) || 0]] });
   });
-  ui('start-beep').addEventListener('click', () => command('sync-beep', {}, '起始同步音已安排，请确认录像收到了这一声。'));
+  ui('start-beep').addEventListener('click', () => command('sync-beep', {}, 'Start sync beep scheduled. Check that the video caught it.'));
   ui('end-beep').addEventListener('click', async () => {
-    if (await command('sync-beep', {}, '结束同步音已安排。')) {
+    if (await command('sync-beep', {}, 'End sync beep scheduled.')) {
       endSyncReady = true;
       updateControls();
     }
@@ -301,28 +435,88 @@ export function mountController({ container, global, players, sync, sendCommand,
   ui('record-stop').addEventListener('click', async () => {
     await command('record-stop');
   });
+  ui('mark').addEventListener('click', () => markNow());
+  ui('reset').addEventListener('click', () => {
+    if (window.confirm('Reset the system? Both phones will disconnect and must scan the QR code again to rejoin.')) {
+      command('reset', {}, 'System reset. Scan the QR code again on each phone to rejoin.');
+    }
+  });
+  const onKeydown = (event) => {
+    const target = event.target;
+    const typing = target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+    if (!typing && !event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === 'm') {
+      event.preventDefault();
+      markNow();
+    }
+  };
+  document.addEventListener('keydown', onKeydown);
+  cleanups.push(() => document.removeEventListener('keydown', onKeydown));
+  ui('mark-list').addEventListener('change', async (event) => {
+    const row = event.target.closest('[data-mark]');
+    if (!row || !(event.target instanceof HTMLInputElement)) {
+      return;
+    }
+    try {
+      await sendCommand('mark-note', { n: Number(row.dataset.mark), note: event.target.value });
+    } catch (error) {
+      if (!disposed) {
+        commandError = error?.message || 'The note was not saved. Please try again.';
+        updateFeedback();
+      }
+    }
+  });
+  ui('mark-list').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
+      event.target.blur();
+    }
+  });
+  ui('copy-marks').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(marksText());
+      if (disposed) {
+        return;
+      }
+      ui('copy-marks').textContent = 'Mark list copied ✓';
+      later(() => {
+        ui('copy-marks').innerHTML = 'Copy mark list <span aria-hidden="true">⧉</span>';
+      }, 2000);
+    } catch {
+      if (!disposed) {
+        commandError = 'The browser blocked copying. Please copy the marks from the list by hand.';
+        updateFeedback();
+      }
+    }
+  });
+  ui('link-choices').addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-url]');
+    if (choice) {
+      selectedUrl = choice.dataset.url;
+      renderLinks();
+    }
+  });
   ui('copy-url').addEventListener('click', async () => {
+    if (!participantUrl) {
+      return;
+    }
     try {
       await navigator.clipboard.writeText(participantUrl);
       if (disposed) {
         return;
       }
-      ui('copy-url').textContent = '网址已复制 ✓';
+      ui('copy-url').textContent = 'URL copied ✓';
       later(() => {
-        ui('copy-url').innerHTML = '复制参与者网址 <span aria-hidden="true">⧉</span>';
+        ui('copy-url').innerHTML = 'Copy participant URL <span aria-hidden="true">⧉</span>';
       }, 2000);
     } catch {
       if (disposed) {
         return;
       }
-      commandError = '浏览器未允许复制，请选择上方参与者网址手动复制。';
+      commandError = 'The browser blocked copying. Select the participant URL above and copy it manually.';
       updateFeedback();
     }
   });
 
-  const localAddress = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
-  ui('address-note').textContent = localAddress ? '当前是电脑本机地址。手机请将 localhost / 127.0.0.1 替换为电脑的局域网 IP；刷新手机页面可重新连接。' : '由研究者提前处理证书与传感器授权；如连接中断，刷新手机页面重新加入。';
-  ui('duration-note').textContent = params.phaseDuration == null ? '阶段时长尚未确定（附录 4.A 的【X】）。请在试运行后填写参数。' : `阶段时长参数：${params.phaseDuration} 分钟。计时供观察，阶段不会自动切换。`;
+  ui('duration-note').textContent = params.phaseDuration == null ? 'Phase duration is not set yet ([X] in Appendix B). Fill in the parameter after piloting.' : `Phase duration: ${params.phaseDuration} min. The timer is for observation only; phases never switch automatically.`;
 
   for (const unsubscribe of [
     global.onUpdate((updates) => renderGlobal(updates)),
@@ -342,6 +536,7 @@ export function mountController({ container, global, players, sync, sendCommand,
   }
 
   renderGlobal();
+  renderLinks();
   renderPlayers(true);
   const signalInterval = setInterval(() => renderPlayers(true), 100);
   const clockInterval = setInterval(renderClock, 250);

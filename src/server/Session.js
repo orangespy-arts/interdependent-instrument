@@ -6,8 +6,8 @@ const phases = ['idle', 'familiarization', 'division', 'modulation', 'consensus'
 const rules = ['division', 'modulation', 'consensus'];
 
 export class Session {
-  constructor({ global, players, sync, logger }) {
-    Object.assign(this, { global, players, sync, logger });
+  constructor({ global, players, sync, logger, resetPlayers = () => {} }) {
+    Object.assign(this, { global, players, sync, logger, resetPlayers });
     this.writer = null;
     this.order = [];
     this.actualOrder = [];
@@ -15,6 +15,8 @@ export class Session {
     this.lastLogged = new Map();
     this.holdTimer = null;
     this.pendingBeepUntil = 0;
+    this.marks = [];
+    this.firstBeep = null;
     players.onAttach(state => this.write('device', { i: state.get('index'), ...state.getValues() }), true);
     players.onDetach(state => {
       this.write('disconnect', { i: state.get('index') });
@@ -90,7 +92,7 @@ export class Session {
     switch (action) {
       case 'phase': {
         if (!phases.includes(payload.phase)) {
-          throw new Error('未知阶段。');
+          throw new Error('Unknown phase.');
         }
         if (this.global.get('phase') === payload.phase) {
           return;
@@ -108,29 +110,31 @@ export class Session {
       }
       case 'record-start': {
         if (this.writer) {
-          throw new Error('已经在记录，请先停止当前记录。');
+          throw new Error('Already recording. Stop the current recording first.');
         }
         const groupId = String(payload.groupId ?? '').trim();
         if (!/^[\p{L}\p{N}_-]{1,40}$/u.test(groupId)) {
-          throw new Error('组别编号请使用 1–40 个字母、数字、汉字、下划线或连字符。');
+          throw new Error('The group ID must be 1–40 letters, digits, underscores or hyphens.');
         }
         const order = payload.order ?? params.phaseOrder;
         if (!Array.isArray(order) || order.length !== 4 || order[0] !== 'familiarization'
           || new Set(order.slice(1)).size !== 3 || !order.slice(1).every(phase => rules.includes(phase))) {
-          throw new Error('顺序须以熟悉阶段开始，且包含分工、调制、共识各一次。');
+          throw new Error('The order must start with familiarization and include division, modulation and consensus once each.');
         }
         this.writer = await this.logger.createWriter(`${groupId}.jsonl`);
         this.order = [...order];
         this.actualOrder = [this.global.get('phase')];
         this.lastLogged.clear();
+        this.marks = [];
+        this.firstBeep = null;
         this.write('session', { groupId, params, order, phase: this.global.get('phase'), divisionSwap: this.global.get('divisionSwap'), jointActive: this.global.get('jointActive'), wallTime: new Date().toISOString() });
         this.players.forEach(player => this.write('device', player.getValues()));
-        await this.global.set({ groupId, recording: true, logFile: path.basename(this.writer.pathname), error: '' });
+        await this.global.set({ groupId, recording: true, logFile: path.basename(this.writer.pathname), marks: [], error: '' });
         break;
       }
       case 'record-stop': {
         if (!this.writer) {
-          throw new Error('当前没有正在进行的记录。');
+          throw new Error('No recording is in progress.');
         }
         // Let a just-scheduled ending beep occur before closing the recording.
         const delay = this.pendingBeepUntil - this.now();
@@ -149,17 +153,72 @@ export class Session {
         this.pendingBeepUntil = time + params.audio.cueDuration;
         await this.global.set({ syncBeep: time });
         this.write('syncBeep', { scheduledAt: now }, time);
+        if (this.writer && this.firstBeep === null) {
+          this.firstBeep = time;
+        }
+        break;
+      }
+      case 'mark': {
+        if (!this.writer) {
+          throw new Error('Start recording before marking.');
+        }
+        const now = this.now();
+        // Use the controller's click time; the command may arrive late or queue behind another.
+        const clicked = Number(payload.time);
+        const t = Number.isFinite(clicked) && clicked >= now - params.markMaxDelay && clicked <= now + 0.5 ? clicked : now;
+        const phase = this.global.get('phase');
+        const phaseStarted = this.global.get('phaseStarted');
+        const mark = {
+          n: this.marks.length + 1,
+          t,
+          phase,
+          phaseElapsed: phase === 'idle' || !phaseStarted ? null : t - phaseStarted,
+          // Offset from the start sync beep, i.e. where to seek in the video.
+          sinceBeep: this.firstBeep === null ? null : t - this.firstBeep,
+          note: '',
+        };
+        this.marks.push(mark);
+        this.write('mark', { n: mark.n, phase, phaseElapsed: mark.phaseElapsed, sinceBeep: mark.sinceBeep, received: now }, t);
+        await this.global.set({ marks: this.marks.map(entry => ({ ...entry })) });
+        break;
+      }
+      case 'mark-note': {
+        if (!this.writer) {
+          throw new Error('The recording has ended, so notes can no longer be written to the log.');
+        }
+        const mark = this.marks.find(entry => entry.n === payload.n);
+        if (!mark) {
+          throw new Error('Mark not found.');
+        }
+        const note = String(payload.note ?? '').trim();
+        if (note.length > 200) {
+          throw new Error('Keep the note to 200 characters or fewer.');
+        }
+        mark.note = note;
+        this.write('mark-note', { n: mark.n, note });
+        await this.global.set({ marks: this.marks.map(entry => ({ ...entry })) });
         break;
       }
       case 'division-swap': {
         if (typeof payload.value !== 'boolean') {
-          throw new Error('角色交换值无效。');
+          throw new Error('Invalid role swap value.');
         }
         await this.global.set({ divisionSwap: payload.value });
         this.write('divisionSwap', { value: payload.value });
         break;
       }
-      default: throw new Error('未知控制命令。');
+      case 'reset': {
+        if (this.writer) {
+          throw new Error('Recording in progress. Stop recording before resetting.');
+        }
+        await this.resetJoint();
+        this.lastLogged.clear();
+        // Marks and the last log name stay visible for the interview until the next recording.
+        await this.global.set({ phase: 'idle', phaseStarted: 0, divisionSwap: false, error: '' });
+        this.resetPlayers();
+        break;
+      }
+      default: throw new Error('Unknown control command.');
     }
   }
 

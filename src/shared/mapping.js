@@ -4,6 +4,8 @@ const clampUnit = (value, fallback) => Number.isFinite(value)
   ? Math.max(0, Math.min(1, value))
   : fallback;
 const interpolate = ([min, max], position) => min + (max - min) * position;
+// Equal steps in position give equal steps in perceived brightness.
+const interpolateExp = ([min, max], position) => min * (max / min) ** position;
 
 /** Pure phase mapping: a device always renders its assigned voice (me). */
 export function computeVoiceParams(phase, me, own = {}, partner = {}, global = {}) {
@@ -29,7 +31,7 @@ export function computeVoiceParams(phase, me, own = {}, partner = {}, global = {
     midi,
     frequency: 440 * 2 ** ((midi - 69) / 12),
     density: interpolate(params.densityRange, intensity),
-    cutoff: interpolate(params.timbreRange, cutoffPosition),
+    cutoff: interpolateExp(params.timbreRange, cutoffPosition),
     gain: active ? (phase === 'consensus' && global?.jointActive ? params.duckGain : 1) : 0,
     enabled: active,
   };

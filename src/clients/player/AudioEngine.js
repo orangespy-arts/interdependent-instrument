@@ -181,8 +181,8 @@ export default class AudioEngine {
         // Both phones use the same pattern, offset by their fixed voice index.
         const degrees = params.audio.jointScaleDegrees;
         const degree = degrees[(this.jointStep + this.index) % degrees.length];
-        const midi = params.scale[degree];
-        this.note('joint', 440 * 2 ** ((midi - 69) / 12), next, this.jointFilter);
+        const midi = params.scale[degree] + params.audio.jointTranspose;
+        this.note('joint', 440 * 2 ** ((midi - 69) / 12), next, this.jointFilter, params.audio.jointWaveform);
         this.jointStep += 1;
         next = this.jointAnchor + this.jointStep * interval;
       }
@@ -233,8 +233,8 @@ export default class AudioEngine {
     parameter.linearRampToValueAtTime(value, now + duration);
   }
 
-  note(kind, frequency, time, destination) {
-    const { oscillator, envelope } = this.source(kind, frequency, time, destination);
+  note(kind, frequency, time, destination, waveform = params.audio.waveform) {
+    const { oscillator, envelope } = this.source(kind, frequency, time, destination, waveform);
     const end = time + params.audio.noteDuration + params.audio.release;
     envelope.gain.setValueAtTime(0, time);
     envelope.gain.linearRampToValueAtTime(1, time + params.audio.attack);
@@ -245,7 +245,7 @@ export default class AudioEngine {
   }
 
   pulse(kind, frequency, time, duration, gain) {
-    const { oscillator, envelope } = this.source(kind, frequency, time, this.context.destination);
+    const { oscillator, envelope } = this.source(kind, frequency, time, this.context.destination, 'triangle');
     envelope.gain.setValueAtTime(0, time);
     envelope.gain.linearRampToValueAtTime(gain, time + Math.min(params.audio.attack, duration / 3));
     envelope.gain.exponentialRampToValueAtTime(SILENCE, time + duration);
@@ -253,9 +253,9 @@ export default class AudioEngine {
     oscillator.stop(time + duration);
   }
 
-  source(kind, frequency, time, destination) {
+  source(kind, frequency, time, destination, waveform) {
     const oscillator = this.context.createOscillator();
-    oscillator.type = params.audio.waveform;
+    oscillator.type = waveform;
     oscillator.frequency.setValueAtTime(frequency, time);
     const envelope = this.context.createGain();
     oscillator.connect(envelope);
