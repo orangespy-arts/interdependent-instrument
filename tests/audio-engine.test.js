@@ -129,6 +129,11 @@ test('the two audio clocks place the common layer on the same shared time', (t) 
   assert.equal(jointA.time + 10, jointB.time + 5);
   assert.equal(jointA.time + 10, 13);
   assert.notEqual(jointA.oscillator.frequency.events[0].value, jointB.oscillator.frequency.events[0].value);
+  // The common layer is a distinct timbre, transposed above the personal voices.
+  assert.equal(jointA.oscillator.type, params.audio.jointWaveform);
+  assert.notEqual(params.audio.jointWaveform, params.audio.waveform);
+  const lowest = 440 * 2 ** ((params.scale[0] + params.audio.jointTranspose - 69) / 12);
+  assert.ok(jointA.oscillator.frequency.events[0].value >= lowest);
 });
 
 test('ending consensus cancels a future joint onset and restores personal gain', (t) => {

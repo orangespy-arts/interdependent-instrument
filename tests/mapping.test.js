@@ -31,9 +31,13 @@ test('modulation changes timbre from partner intensity without changing local pi
   const modulated = map('modulation', 0);
   assert.equal(modulated.midi, baseline.midi);
   assert.equal(modulated.density, baseline.density);
-  assert.equal(modulated.cutoff, 4880);
-  assert.equal(map('modulation', 1).cutoff, 1520);
-  assert.equal(baseline.cutoff, 3200);
+  const [low, high] = params.timbreRange;
+  // Exponential mapping: partner intensity 0.8 / 0.2 → cutoff at 80% / 20% of the octave span.
+  assert.ok(Math.abs(modulated.cutoff - low * (high / low) ** 0.8) < 1e-9);
+  assert.ok(Math.abs(map('modulation', 1).cutoff - low * (high / low) ** 0.2) < 1e-9);
+  assert.ok(Math.abs(baseline.cutoff - Math.sqrt(low * high)) < 1e-9);
+  // A resting partner darkens the sound to the bottom of the range.
+  assert.equal(computeVoiceParams('modulation', 0, a, { tilt: 0.5, intensity: 0 }).cutoff, low);
 });
 
 test('consensus ducks only when the joint layer is active', () => {

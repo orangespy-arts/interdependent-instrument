@@ -5,28 +5,47 @@ html { margin: 0; min-height: 100%; }
 body.player { margin: 0; min-height: 100svh; background: #f8f7f3; color: #202824; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
 .introduction { max-width: 460px; padding: max(36px, env(safe-area-inset-top)) 28px 36px; margin: auto; }
 .introduction h1 { font-size: 30px; font-weight: 500; margin: 14px 0 32px; }
-.introduction p { font-size: 17px; line-height: 1.85; margin: 0 0 19px; }
+.introduction p { font-size: 17px; line-height: 1.6; margin: 0 0 20px; }
 .introduction button { appearance: none; background: #254d45; color: #fff; border: 0; border-radius: 14px; width: 100%; margin-top: 12px; padding: 18px; font: inherit; font-size: 18px; }
 .introduction button:disabled { opacity: .4; }
 .introduction button:focus-visible { outline: 3px solid #aa784f; outline-offset: 4px; }
+.introduction .startup-error { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: #faf0e6; color: #8a5634; font-size: 15px; line-height: 1.7; }
 body.player.performing { background: #000; color: #000; height: 100dvh; overflow: hidden; touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; }
 
-// Performing-screen gesture guide: dim line drawings so the dark room stays dark.
-$gesture-line: rgba(255, 255, 255, .34);
-.gestures { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); pointer-events: none; color: rgba(255, 255, 255, .42); }
-.gesture { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
-.gesture figcaption { font-size: 17px; letter-spacing: .3em; text-indent: .3em; }
-.gesture-stage { position: relative; width: 150px; height: 140px; display: grid; place-items: center; perspective: 420px; }
-.gesture-phone { position: relative; width: 50px; height: 90px; border: 2px solid $gesture-line; border-radius: 11px; }
+// Performing-screen rule guide: dim line drawings so the dark room stays dark.
+$guide-line: rgba(255, 255, 255, .34);
+$guide-text: rgba(255, 255, 255, .5);
+.rule-guide { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); pointer-events: none; color: $guide-text; animation: rule-in .6s ease-out; }
+.rule-guide header { text-align: center; }
+.rule-guide h2 { margin: 0 0 6px; font-size: 15px; font-weight: 500; letter-spacing: .2em; text-indent: .2em; text-transform: uppercase; }
+.rule-guide header p, .rule-wait { margin: 0; font-size: 15px; line-height: 1.45; }
+.rule-wait { text-align: center; }
+.rules { list-style: none; margin: 0 auto; padding: 0; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+.rule { display: grid; grid-template-columns: 104px 28px 48px 1fr; align-items: center; column-gap: 10px; }
+.rule-figure { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rule-actor { font-size: 11px; letter-spacing: .14em; text-align: center; text-transform: uppercase; }
+.rule-arrow { position: relative; height: 2px; background: $guide-line; }
+.rule-arrow::after { content: ''; position: absolute; right: 0; top: -4px; width: 8px; height: 8px; border: solid $guide-line; border-width: 2px 2px 0 0; transform: rotate(45deg); }
+.rule-effect { width: 48px; height: 48px; fill: none; stroke: $guide-line; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rule-effect-pitch circle { fill: $guide-line; }
+.rule-text { margin: 0; font-size: 14px; line-height: 1.4; }
+@keyframes rule-in { from { opacity: 0; } }
+
+.gesture-stage { position: relative; width: 104px; height: 84px; display: flex; justify-content: center; align-items: center; gap: 12px; perspective: 320px; }
+.gesture-phone { position: relative; width: 30px; height: 54px; border: 2px solid $guide-line; border-radius: 7px; }
 // Speaker slot marks the top edge, so the tilt direction reads correctly.
-.gesture-phone::before { content: ''; position: absolute; top: 7px; left: 50%; width: 14px; height: 2px; margin-left: -7px; border-radius: 2px; background: $gesture-line; }
+.gesture-phone::before { content: ''; position: absolute; top: 5px; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 2px; background: $guide-line; }
+// The partner's phone is drawn dashed: its movement, not yours.
+.rule-actor-partner .gesture-phone { border-style: dashed; }
+.rule-actor-both .gesture-phone:last-child { border-style: dashed; }
 
 // Intensity is angular speed, so the drawing twists at the wrist (bottom),
 // growing from a gentle to a vigorous shake.
-.gesture-shake .gesture-phone { transform-origin: 50% 90%; animation: gesture-shake 2.4s ease-in-out infinite; }
-.gesture-shake .gesture-stage::before, .gesture-shake .gesture-stage::after { content: ''; position: absolute; top: 22px; width: 24px; height: 64px; border: 2px solid transparent; border-radius: 50%; opacity: 0; animation: gesture-motion 2.4s ease-in-out infinite; }
-.gesture-shake .gesture-stage::before { left: 12px; border-left-color: $gesture-line; }
-.gesture-shake .gesture-stage::after { right: 12px; border-right-color: $gesture-line; }
+.rule-shake .gesture-phone { transform-origin: 50% 90%; animation: gesture-shake 2.4s ease-in-out infinite; }
+.rule-shake .gesture-stage::before, .rule-shake .gesture-stage::after { content: ''; position: absolute; top: 12px; width: 16px; height: 42px; border: 2px solid transparent; border-radius: 50%; opacity: 0; animation: gesture-motion 2.4s ease-in-out infinite; }
+.rule-shake .gesture-stage::before { left: 4px; border-left-color: $guide-line; }
+.rule-shake .gesture-stage::after { right: 4px; border-right-color: $guide-line; }
+.rule-actor-both .gesture-stage::before, .rule-actor-both .gesture-stage::after { display: none; }
 @keyframes gesture-shake {
   0%, 76%, 100% { transform: rotate(0); }
   8% { transform: rotate(-5deg); }
@@ -45,19 +64,24 @@ $gesture-line: rgba(255, 255, 255, .34);
 }
 
 // Tilt follows params.tiltAxis 'y': the top edge tips toward and away.
-.gesture-tilt .gesture-phone { animation: gesture-tilt 3.2s ease-in-out infinite alternate; }
+.rule-tilt .gesture-phone { animation: gesture-tilt 3.2s ease-in-out infinite alternate; }
 @keyframes gesture-tilt {
   from { transform: rotateX(55deg); }
   to { transform: rotateX(-55deg); }
 }
 
+// Landscape: rules side by side, each stacked vertically.
 @media (orientation: landscape) {
-  .gestures { flex-direction: row; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+  .rule-guide { gap: 14px; }
+  .rules { flex-direction: row; max-width: none; justify-content: center; gap: 20px; }
+  .rule { flex: 0 1 220px; grid-template-columns: auto 22px 40px; justify-content: center; row-gap: 6px; }
+  .rule-effect { width: 40px; height: 40px; }
+  .rule-text { grid-column: 1 / -1; text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gesture-phone, .gesture-stage::before, .gesture-stage::after { animation: none !important; }
-  .gesture-shake .gesture-phone { transform: rotate(-16deg); }
-  .gesture-shake .gesture-stage::before, .gesture-shake .gesture-stage::after { opacity: 1; }
-  .gesture-tilt .gesture-phone { transform: rotateX(40deg); }
+  .rule-guide, .gesture-phone, .gesture-stage::before, .gesture-stage::after { animation: none !important; }
+  .rule-shake .gesture-phone { transform: rotate(-16deg); }
+  .rule-shake .gesture-stage::before, .rule-shake .gesture-stage::after { opacity: 1; }
+  .rule-tilt .gesture-phone { transform: rotateX(40deg); }
 }

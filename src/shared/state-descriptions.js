@@ -9,6 +9,8 @@ export const globalDescription = {
   cue: { type: 'float', default: null, event: true },
   syncBeep: { type: 'float', default: null, event: true },
   logFile: { type: 'string', default: '' },
+  // Researcher marks for the current recording: [{ n, t, phase, phaseElapsed, sinceBeep, note }].
+  marks: { type: 'any', default: [] },
   error: { type: 'string', default: '' },
   // [{ name, url, trusted }] for this server run; see server/participant-links.js.
   participantLinks: { type: 'any', default: [] },

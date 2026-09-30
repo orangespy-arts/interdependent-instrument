@@ -21,9 +21,13 @@ server.stateManager.defineClass('player', playerDescription);
 
 let session;
 let commands = Promise.resolve();
+const playerClients = new Set();
 server.onClientConnect(client => {
   // Participant sockets never receive a researcher command handler.
   if (client.role !== 'controller') {
+    if (client.role === 'player') {
+      playerClients.add(client);
+    }
     return;
   }
   client.socket.addListener('research:command', message => {
@@ -31,7 +35,7 @@ server.onClientConnect(client => {
     commands = commands.then(async () => {
       try {
         if (!session) {
-          throw new Error('服务器正在初始化，请稍后重试。');
+          throw new Error('The server is still starting up. Try again in a moment.');
         }
         await session.command(action, payload);
         client.socket.send('research:result', { id, ok: true });
@@ -43,12 +47,16 @@ server.onClientConnect(client => {
   });
 });
 
+server.onClientDisconnect(client => playerClients.delete(client));
+
 await server.start();
 const global = await server.stateManager.create('global');
 const players = await server.stateManager.getCollection('player');
 const sync = await server.pluginManager.get('sync');
 const logger = await server.pluginManager.get('logger');
-session = new Session({ global, players, sync, logger });
+// Each phone leaves for its reset view and disconnects, freeing both checkin slots.
+const resetPlayers = () => playerClients.forEach(client => client.socket.send('research:reset'));
+session = new Session({ global, players, sync, logger, resetPlayers });
 
 // Poll so the controller's QR code follows Wi-Fi joins and DHCP changes.
 const certificate = readCertificate(config.env);
@@ -62,7 +70,7 @@ async function refreshParticipantLinks() {
 const links = await refreshParticipantLinks();
 const linkTimer = setInterval(() => refreshParticipantLinks().catch(console.error), 5000);
 const protocol = config.env.useHttps ? 'https' : 'http';
-console.log(`\n手机端: ${links[0]?.url ?? '（未检测到局域网地址，请连接 Wi-Fi）'}\n研究者控制端: ${protocol}://localhost:${config.env.port}/controller（页面内有手机二维码）\n`);
+console.log(`\nPhones: ${links[0]?.url ?? '(no local network address found; connect to Wi-Fi)'}\nResearcher controller: ${protocol}://localhost:${config.env.port}/controller (shows a QR code for the phones)\n`);
 
 let stopping = false;
 async function shutdown() {

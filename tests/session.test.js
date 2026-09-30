@@ -229,3 +229,75 @@ test('stopping just after a sync beep waits until its scheduled sound has finish
   assert.equal(writer.closed, true);
   assert.ok(writer.records.at(-1).t >= beep + params.audio.cueDuration);
 });
+
+test('researcher marks keep the click time, phase and offset from the start sync beep', async t => {
+  const { session, global, clock, logger } = setup(t);
+  await assert.rejects(session.command('mark', { time: 10 }));
+  await session.command('record-start', { groupId: 'G03' });
+  await session.command('sync-beep');
+  const beep = global.get('syncBeep');
+  clock.time = 30;
+  await session.command('phase', { phase: 'modulation' });
+  clock.time = 45;
+  // Clicked at 44, arrived at 45.
+  await session.command('mark', { time: 44 });
+  // Implausible client times fall back to the server's time.
+  await session.command('mark', { time: 45 - params.markMaxDelay - 1 });
+  await session.command('mark', { time: 'soon' });
+  const marks = global.get('marks');
+  assert.deepEqual(marks.map(mark => mark.n), [1, 2, 3]);
+  assert.deepEqual(marks.map(mark => mark.t), [44, 45, 45]);
+  assert.equal(marks[0].phase, 'modulation');
+  assert.equal(marks[0].phaseElapsed, 14);
+  assert.equal(marks[0].sinceBeep, 44 - beep);
+  const record = logger.writers[0].records.find(entry => entry.type === 'mark');
+  assert.deepEqual(record, { t: 44, type: 'mark', n: 1, phase: 'modulation', phaseElapsed: 14, sinceBeep: 44 - beep, received: 45 });
+
+  await session.command('mark-note', { n: 1, note: '  两人停下，互相看  ' });
+  assert.equal(global.get('marks')[0].note, '两人停下，互相看');
+  assert.deepEqual(logger.writers[0].records.at(-1), { t: 45, type: 'mark-note', n: 1, note: '两人停下，互相看' });
+  await assert.rejects(session.command('mark-note', { n: 9, note: 'x' }));
+  await assert.rejects(session.command('mark-note', { n: 1, note: 'x'.repeat(201) }));
+
+  await session.command('record-stop');
+  await assert.rejects(session.command('mark', { time: 45 }));
+  await assert.rejects(session.command('mark-note', { n: 1, note: 'late' }));
+  assert.equal(global.get('marks').length, 3, 'marks stay visible for the interview after recording stops');
+});
+
+test('a new recording clears marks and the start beep reference', async t => {
+  const { session, global, clock } = setup(t);
+  await session.command('record-start', { groupId: 'G03' });
+  await session.command('sync-beep');
+  await session.command('mark', { time: 10 });
+  await session.command('record-stop');
+  clock.time = 100;
+  await session.command('record-start', { groupId: 'G04' });
+  assert.deepEqual(global.get('marks'), []);
+  await session.command('mark', { time: 100 });
+  assert.equal(global.get('marks')[0].n, 1);
+  assert.equal(global.get('marks')[0].sinceBeep, null);
+  assert.equal(global.get('marks')[0].phaseElapsed, null);
+});
+
+test('reset returns to idle, clears the common layer and disconnects phones, but never during a recording', async t => {
+  let resets = 0;
+  const { session, global, logger } = setup(t, 'consensus');
+  session.resetPlayers = () => {
+    resets += 1;
+  };
+  await session.command('record-start', { groupId: 'G03' });
+  await session.command('mark', { time: 10 });
+  await assert.rejects(session.command('reset'));
+  assert.equal(resets, 0);
+  await session.command('record-stop');
+  await global.set({ jointActive: true, divisionSwap: true, phaseStarted: 5 });
+  await session.command('reset');
+  assert.equal(resets, 1);
+  assert.equal(global.get('phase'), 'idle');
+  assert.equal(global.get('phaseStarted'), 0);
+  assert.equal(global.get('jointActive'), false);
+  assert.equal(global.get('divisionSwap'), false);
+  assert.equal(global.get('marks').length, 1, 'marks stay for the interview');
+  assert.equal(logger.writers[0].closed, true);
+});

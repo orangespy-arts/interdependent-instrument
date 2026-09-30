@@ -5,11 +5,11 @@ import ClientPluginSync from '@soundworks/plugin-sync/client.js';
 import params from '../shared/params.js';
 import { mountController } from './controller/dashboard.js';
 
-document.documentElement.lang = 'zh-CN';
+document.documentElement.lang = 'en';
 document.body.className = 'controller';
-document.title = 'Interdependent Instrument · 研究控制台';
+document.title = 'Interdependent Instrument · Research Console';
 const container = document.createElement('main');
-container.textContent = '正在连接研究服务器…';
+container.textContent = 'Connecting to the research server…';
 document.body.append(container);
 const client = new Client(loadConfig());
 client.pluginManager.register('sync', ClientPluginSync);
@@ -34,12 +34,12 @@ client.socket.addListener('close', () => {
   dashboard?.destroy();
   for (const request of pending.values()) {
     clearTimeout(request.timer);
-    request.reject(new Error('服务器连接已中断。'));
+    request.reject(new Error('Lost connection to the server.'));
   }
   pending.clear();
   container.replaceChildren();
   const notice = document.createElement('p');
-  notice.textContent = '服务器连接已中断。重新启动服务器后，请刷新此页面。';
+  notice.textContent = 'Lost connection to the server. Restart the server, then reload this page.';
   container.append(notice);
 });
 
@@ -48,7 +48,7 @@ function sendCommand(action, payload = {}) {
     const id = ++sequence;
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(new Error('命令确认超时，请检查控制台状态后再操作。'));
+      reject(new Error('The command was not confirmed in time. Check the console state before trying again.'));
     }, params.commandTimeout * 1000);
     pending.set(id, { resolve, reject, timer });
     client.socket.send('research:command', { id, action, payload });
@@ -64,5 +64,5 @@ async function main() {
 }
 
 main().catch(error => {
-  container.textContent = `控制台启动失败：${error.message}`; 
+  container.textContent = `The console failed to start: ${error.message}`; 
 });
